@@ -1,0 +1,2 @@
+"""Esqueleto distribuído aos estudantes."""
+
