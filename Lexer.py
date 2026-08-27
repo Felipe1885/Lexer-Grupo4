@@ -80,12 +80,134 @@ class Lexer:
 
     def __init__(self, source: str):
         self.source = source
-        # TODO: inicialize aqui o estado exigido por sua estratégia.
 
     def tokens(self) -> Iterator[Token]:
         """Produza todos os tokens significativos e um único EOF ao final."""
-        raise NotImplementedError("implemente o analisador léxico")
-        yield  # mantém este método como gerador durante o desenvolvimento
+        tokens = []
+        current_lexeme = ""
+        line = 1
+        column = 1
+        
+        i = 0
+        while i < len(self.source):
+            char = self.source[i]
+            #print("i: " + str(i) + "repr" + repr(char))
+            if char.isspace(): # Ignorar espaços em branco
+                if char == '\n':
+                    line += 1
+                    column = 1
+                i += 1
+            else:
+                if char in ['(', ')', '{', '}', ',', ';', '+', '-', '*', '%']: # Tokens de um caractere
+                    if char == '(':
+                        tokens.append(Token(TokenKind.LEFT_PAREN, char, None, line, column))
+                    elif char == ')':
+                        tokens.append(Token(TokenKind.RIGHT_PAREN, char, None, line, column))
+                    elif char == '{':
+                        tokens.append(Token(TokenKind.LEFT_BRACE, char, None, line, column))
+                    elif char == '}':
+                        tokens.append(Token(TokenKind.RIGHT_BRACE, char, None, line, column))
+                    elif char == ',':
+                        tokens.append(Token(TokenKind.COMMA, char, None, line, column))
+                    elif char == ';':
+                        tokens.append(Token(TokenKind.SEMICOLON, char, None, line, column))
+                    elif char == '+':
+                        tokens.append(Token(TokenKind.PLUS, char, None, line, column))
+                    elif char == '-':
+                        tokens.append(Token(TokenKind.MINUS, char, None, line, column))
+                    elif char == '*':
+                        tokens.append(Token(TokenKind.STAR, char, None, line, column))
+                    elif char == '%':
+                        tokens.append(Token(TokenKind.PERCENT, char, None, line, column))
+                    i += 1
+                elif char.isdigit(): # Literais inteiros
+                    while i < len(self.source) and self.source[i].isdigit():
+                        current_lexeme += self.source[i]
+                        i += 1
+                    tokens.append(Token(TokenKind.INT_LITERAL, current_lexeme, int(current_lexeme), line, column))
+                elif char == '"': # Literais de string
+                    i += 1
+                    while i < len(self.source) and self.source[i] != '"' or (self.source[i] == '"' and self.source[i - 1] == '\\'):
+                        current_lexeme += self.source[i]
+                        i += 1
+                    if i < len(self.source) and self.source[i] == '"':
+                        tokens.append(Token(TokenKind.STRING_LITERAL, current_lexeme, current_lexeme, line, column))
+                    i += 1
+                elif char.isalpha() or char == '_': # Identificadores ou keywords
+                    while i < len(self.source) and (self.source[i].isalnum() or self.source[i] == '_'):
+                        current_lexeme += self.source[i]
+                        i += 1
+                    if current_lexeme in ['int', 'bool', 'void', 'if', 'else', 'while', 'return', 'print']:
+                        tokens.append(Token(TokenKind[f'KW_{current_lexeme.upper()}'], current_lexeme, None, line, column))
+                    elif current_lexeme in ['true']:
+                        tokens.append(Token(TokenKind[f'KW_{current_lexeme.upper()}'], current_lexeme, True, line, column))
+                    elif current_lexeme in ['false']:
+                        tokens.append(Token(TokenKind[f'KW_{current_lexeme.upper()}'], current_lexeme, False, line, column))
+                    else:
+                        tokens.append(Token(TokenKind.IDENTIFIER, current_lexeme, current_lexeme, line, column))
+                elif char in ['<', '>', '=', '!', '&', '|']: # Operadores compostos
+                    if i + 1 < len(self.source):
+                        next_char = self.source[i + 1]
+                        if char == '<' and next_char == '=':
+                            tokens.append(Token(TokenKind.LESS_EQUAL, '<=', None, line, column))
+                            i += 1
+                        elif char == '>' and next_char == '=':
+                            tokens.append(Token(TokenKind.GREATER_EQUAL, '>=', None, line, column))
+                            i += 1
+                        elif char == '=' and next_char == '=':
+                            tokens.append(Token(TokenKind.EQUAL_EQUAL, '==', None, line, column))
+                            i += 1
+                        elif char == '!' and next_char == '=':
+                            tokens.append(Token(TokenKind.NOT_EQUAL, '!=', None, line, column))
+                            i += 1
+                        elif char == '&' and next_char == '&':
+                            tokens.append(Token(TokenKind.LOGICAL_AND, '&&', None, line, column))
+                            i += 1
+                        elif char == '|' and next_char == '|':
+                            tokens.append(Token(TokenKind.LOGICAL_OR, '||', None, line, column))
+                            i += 1
+                        else:
+                            if char == '<':
+                                tokens.append(Token(TokenKind.LESS, '<', None, line, column))
+                            elif char == '>':
+                                tokens.append(Token(TokenKind.GREATER, '>', None, line, column))
+                            elif char == '=':
+                                tokens.append(Token(TokenKind.ASSIGN, '=', None, line, column))
+                            elif char == '!':
+                                tokens.append(Token(TokenKind.LOGICAL_NOT, '!', None, line, column))
+                    else:
+                        if char == '<':
+                            tokens.append(Token(TokenKind.LESS, '<', None, line, column))
+                        elif char == '>':
+                            tokens.append(Token(TokenKind.GREATER, '>', None, line, column))
+                        elif char == '=':
+                            tokens.append(Token(TokenKind.ASSIGN, '=', None, line, column))
+                        elif char == '!':
+                            tokens.append(Token(TokenKind.LOGICAL_NOT, '!', None, line, column))
+                    i += 1
+                elif char == '/': # Comentários ou operador de divisão
+                    if i + 1 < len(self.source):
+                        next_char = self.source[i + 1]
+                        if next_char == '/': # Comentário de linha
+                            while i < len(self.source) and self.source[i] != '\n':
+                                i += 1
+                        elif next_char == '*': # Comentário de bloco
+                            i += 2
+                            while i + 1 < len(self.source) and not (self.source[i] == '*' and self.source[i + 1] == '/'):
+                                if (self.source[i] == '\n'):
+                                    line += 1
+                                i += 1
+                            if i + 1 < len(self.source):
+                                i += 2
+                    else:
+                        tokens.append(Token(TokenKind.SLASH, '/', None, line, column))
+            
+            column += 1
+            current_lexeme = ""
+
+        tokens.append(Token(TokenKind.EOF, "", None, line, column))
+        
+        return tokens
 
     def scan(self) -> list[Token]:
         return list(self.tokens())
