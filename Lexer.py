@@ -129,18 +129,24 @@ class Lexer:
                 column += len(current_lexeme)
             elif char == '"': # Literais de string
                 i += 1
-                column += 1
-                while i < len(self.source) and self.source[i] != '"' or (self.source[i] == '"' and self.source[i - 1] == '\\'):
+                while i < len(self.source) and (self.source[i] != '"' or (self.source[i] == '"' and self.source[i - 1] == '\\')):
                     if (self.source[i] == '\n'):
-                         LexerError("string literal não pode conter quebras de linha", line, column)
+                         raise LexerError("string literal não pode conter quebras de linha", line, column+len(current_lexeme)+1)
+                    if (self.source[i] not in ['n', 't', '\"', '\\'] and self.source[i - 1] == '\\'):
+                        raise LexerError("string possui barra invertida", line, column+len(current_lexeme))
+                    if (self.source[i] == '\\' and self.source[i - 1] == '\\'):
+                        current_lexeme += self.source[i]
+                        i += 1
                     current_lexeme += self.source[i]
                     i += 1
+                if (i == len(self.source)):
+                    raise LexerError("string literal não termina com aspas", line, column)
                 if i < len(self.source) and self.source[i] == '"':
                     value = current_lexeme.encode().decode('unicode_escape')
                     tokens.append(Token(TokenKind.STRING_LITERAL, f'"{current_lexeme}"', value, line, column))
                 i += 1
                 column += len(current_lexeme) + 1
-            elif char.isalpha() or char == '_': # Identificadores ou keywords
+            elif (char.isalpha() and char.isascii()) or char == '_': # Identificadores ou keywords
                 while i < len(self.source) and (self.source[i].isalnum() or self.source[i] == '_'):
                     current_lexeme += self.source[i]
                     i += 1
@@ -216,6 +222,8 @@ class Lexer:
                             i += 1
                             column += 1
                     elif next_char == '*': # Comentário de bloco
+                        ini_line = line
+                        ini_column = column
                         i += 2
                         column += 2
                         while i + 1 < len(self.source) and not (self.source[i] == '*' and self.source[i + 1] == '/'):
@@ -227,6 +235,8 @@ class Lexer:
                         if i + 1 < len(self.source):
                             i += 2
                             column += 2
+                        else:
+                            raise LexerError("comentário de bloco não termina", ini_line, ini_column)
                     else:
                         tokens.append(Token(TokenKind.SLASH, '/', None, line, column))
                         i += 1
@@ -234,7 +244,7 @@ class Lexer:
                 else:
                     tokens.append(Token(TokenKind.SLASH, '/', None, line, column))
                     column += 1
-            else: # Caractere inesperado TODO: verificar também dentro dos loops
+            else:
                 raise LexerError(f"caractere inesperado {char}", line, column)
 
             current_lexeme = ""
