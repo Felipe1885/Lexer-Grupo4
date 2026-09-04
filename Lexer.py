@@ -250,8 +250,6 @@ class Lexer:
             current_lexeme = ""
 
         yield Token(TokenKind.EOF, "", None, line, column)
-        
-        return tokens
 
     def scan(self) -> list[Token]:
         return list(self.tokens())
